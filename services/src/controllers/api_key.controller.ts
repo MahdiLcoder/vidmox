@@ -6,13 +6,16 @@ import {
   Param,
   Post,
   Req,
+  UseGuards,
 } from '@nestjs/common';
 import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
 import { type Request } from 'express';
+import { ClerkAuthGuard } from 'src/guards/clerk.guard';
 import { ApiKeyService } from 'src/services/apiKeyService.service';
 
 @Controller('api-key')
 @ApiTags('API Keys')
+@UseGuards(ClerkAuthGuard)
 @ApiBearerAuth()
 export class ApiKeyController {
   constructor(private readonly apiKeyService: ApiKeyService) {}
@@ -26,18 +29,24 @@ export class ApiKeyController {
   @Get()
   @ApiOperation({ summary: 'List all API keys' })
   async listApikeys(@Req() req: any) {
-    return this.apiKeyService.listApikeys(req.user.id);
+    return this.apiKeyService.listApikeys(req.user!.id);
+  }
+
+  @Get(':id')
+  @ApiOperation({ summary: 'API KEY LAST USED' })
+  async apiKeyLastUsed(@Req() req: any, @Param('id') id: string) {
+    return this.apiKeyService.apiKeyLastUsed(id);
   }
 
   @Delete(':id')
   @ApiOperation({ summary: 'Revoke an API key' })
-  async deleteApiKey(@Param('id') id: string) {
-    return this.apiKeyService.deleteApiKey(id);
+  async deleteApiKey(@Req() req: any, @Param('id') id: string) {
+    return this.apiKeyService.deleteApiKey(req.user!.id, id);
   }
 
   @Post(':id/regenerate')
   @ApiOperation({ summary: 'Regenerate an API key' })
   async regenerateApiKey(@Req() req: any, @Param('id') id: string) {
-    return this.apiKeyService.regenerateApiKey(req.user.id, id);
+    return this.apiKeyService.regenerateApiKey(req.user!.id, id);
   }
 }
