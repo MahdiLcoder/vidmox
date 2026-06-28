@@ -115,7 +115,7 @@ export class ClerkAuthGuard implements CanActivate {
         await this.redis.expire(rKeyDigest, REDIS_HARD_TTL);
 
         request.user = { id: record.user_id, keyId };
-        void this.trackApiKeyLastUsed(keyId);extractKeyId
+        void this.trackApiKeyLastUsed(keyId);
         return true;
       } catch (error) {
         console.log(error);
