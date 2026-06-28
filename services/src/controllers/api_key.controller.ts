@@ -13,7 +13,7 @@ import { type Request } from 'express';
 import { ClerkAuthGuard } from 'src/guards/clerk.guard';
 import { ApiKeyService } from 'src/services/apiKeyService.service';
 
-@Controller('api-key')
+@Controller('api-keys')
 @ApiTags('API Keys')
 @UseGuards(ClerkAuthGuard)
 @ApiBearerAuth()
@@ -22,8 +22,8 @@ export class ApiKeyController {
 
   @Post()
   @ApiOperation({ summary: 'Create a new API key' })
-  async create(@Req() req: any, @Body('name') name: string) {
-    return this.apiKeyService.createApiKey(req.user!.id, name);
+  async create(@Req() req: any) {
+    return this.apiKeyService.createApiKey(req.user!.id);
   }
 
   @Get()

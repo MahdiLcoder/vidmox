@@ -29,7 +29,7 @@ export class ApiKeyService {
     return { plaintextkey, keyId };
   }
 
-  async createApiKey(userId: string, name: string) {
+  async createApiKey(userId: string) {
     const [result] = await this.db
       .select({ count: count() })
       .from(apiKey)
@@ -74,6 +74,7 @@ export class ApiKeyService {
   }
 
   async apiKeyLastUsed(keyId: string) {
+    const normalizedKey = keyId.replace(/-/, '');
     const redisValue = await this.redis.hget(LAST_USED_HASH, keyId);
     if (redisValue) return new Date(Number(redisValue));
 
@@ -84,7 +85,9 @@ export class ApiKeyService {
       },
     });
 
-    return record?.last_used_at ?? null;
+    return {
+      last_used_at: record?.last_used_at ?? null,
+    };
   }
 
   async deleteApiKey(userId: string, keyId: string) {
@@ -114,8 +117,11 @@ export class ApiKeyService {
         value: hash,
         prefix,
         id: newKeyId,
+        created_at: new Date(),
       })
       .where(and(eq(apiKey.user_id, userId), eq(apiKey.id, keyId)));
+    await this.redis.del(`vmx:api_key:${VERSION}:${keyId}`);
+    localCache.delete(`${VERSION}:${keyId}`);
     return { key: plaintextkey };
   }
 }

@@ -2,12 +2,13 @@ import { Module } from '@nestjs/common';
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
 import { ConfigModule } from '@nestjs/config';
-import { ApiKeyModule } from './modules/api_key.module';
+import { ApiKeyModule } from './modules/api_key/api_key.module';
 import { DbModule } from './db/db.module';
 import { CacheModule } from './infra/cache.module';
 import { RedisModule } from './infra/redis.module';
 import { ScheduleModule } from '@nestjs/schedule';
 import { ApiKeyUsageCron } from './scheduler/api_key.cron';
+import { PlaylistModule } from './modules/playlist/playlist.module';
 
 @Module({
   imports: [
@@ -19,6 +20,7 @@ import { ApiKeyUsageCron } from './scheduler/api_key.cron';
     CacheModule,
     RedisModule,
     ApiKeyModule,
+    PlaylistModule,
   ],
   controllers: [AppController],
   providers: [AppService, ApiKeyUsageCron],

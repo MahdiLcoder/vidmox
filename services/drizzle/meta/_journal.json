@@ -8,6 +8,13 @@
       "when": 1782603400078,
       "tag": "0000_lazy_big_bertha",
       "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "7",
+      "when": 1782668511070,
+      "tag": "0001_flawless_stingray",
+      "breakpoints": true
     }
   ]
 }
