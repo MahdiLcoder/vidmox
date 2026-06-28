@@ -269,8 +269,8 @@ const Page = () => {
                   Playlist Name <span className="text-red-500">*</span>
                 </label>
                 <input
-                  value={playlistName}
-                  onChange={(e) => setPlaylistName(e.target.value)}
+                  value={editName}
+                  onChange={(e) => setEditName(e.target.value)}
                   className="w-full px-3 py-2 text-sm rounded-md bg-gray-100 dark:bg-slate-900 border dark:border-slate-800 outline-none focus:ring-2 ring-indigo-500"
                   placeholder="e.g. English Tutorials"
                 />
@@ -282,8 +282,8 @@ const Page = () => {
                   Description <span className="text-gray-400">(optional)</span>
                 </label>
                 <textarea
-                  value={description}
-                  onChange={(e) => setDescription(e.target.value)}
+                  value={editDescription}
+                  onChange={(e) => setEditDescription(e.target.value)}
                   className="w-full px-3 py-2 text-sm rounded-md bg-gray-100 dark:bg-slate-900 border dark:border-slate-800 outline-none focus:ring-2 ring-indigo-500"
                   placeholder="Add an optional note for yourself"
                   rows={3}
@@ -301,12 +301,20 @@ const Page = () => {
             <div className="flex justify-end items-center gap-3 px-6 pb-5">
               <button
                 onClick={() => {
-                  setShowModal(false);
-                  createMutation.reset();
+                  setEditShowModal(false);
+                  updateMutation.reset();
                 }}
+                disabled={updateMutation.isPending}
                 className="px-4 cursor-pointer py-1.5 text-sm rounded-md border dark:border-slate-600 dark:text-gray-300 text-black dark:hover:bg-slate-700 hover:bg-gray-200 transition"
               >
-                Cancel
+                {updateMutation.isPending ? (
+                  <div className="flex items-center gap-2">
+                    <Loader2 className="animate-spin" size={16} />
+                    <span className="text-sm">Canceling...</span>
+                  </div>
+                ) : (
+                  "Cancel"
+                )}
               </button>
               <button
                 onClick={handleCreate}
