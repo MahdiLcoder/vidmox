@@ -11,18 +11,16 @@ import { NeonHttpDatabase } from 'drizzle-orm/neon-http';
 import { CacheKey, LAST_USED_HASH, VERSION } from 'src/configs/constanst';
 import { LRUCache } from 'lru-cache';
 
-
-
 const localCache = new LRUCache<string, CacheKey>({
-  max: 100_000
-})
+  max: 100_000,
+});
 
 @Injectable()
 export class ApiKeyService {
   constructor(
     @Inject(DRIZZLE_DB) private readonly db: NeonHttpDatabase<typeof schema>,
     @Inject(REDIS_CLIENT) private readonly redis: redis,
-    ) {}
+  ) {}
 
   private generateKey(): { plaintextkey: string; keyId: string } {
     const keyId = crypto.randomUUID().replace(/-/g, '');
@@ -63,46 +61,46 @@ export class ApiKeyService {
   }
 
   async listApikeys(userId: string) {
-    return this.db.select({
-      id: apiKey.id,
-      prefix: apiKey.prefix,
-      createdAt: apiKey.created_at,
-      last_used_at: apiKey.last_used_at,
-      revoked_at: apiKey.revoked_at
-    }).from(apiKey).where(and(
-      eq(apiKey.user_id, userId),
-    ))
+    return this.db
+      .select({
+        id: apiKey.id,
+        prefix: apiKey.prefix,
+        createdAt: apiKey.created_at,
+        last_used_at: apiKey.last_used_at,
+        revoked_at: apiKey.revoked_at,
+      })
+      .from(apiKey)
+      .where(and(eq(apiKey.user_id, userId)));
   }
 
   async apiKeyLastUsed(keyId: string) {
-    const redisValue = await this.redis.hget(LAST_USED_HASH, keyId)
+    const redisValue = await this.redis.hget(LAST_USED_HASH, keyId);
     if (redisValue) return new Date(Number(redisValue));
-    
+
     const record = await this.db.query.apiKey.findFirst({
-      where: (ak)=> eq(ak.id, keyId),
+      where: (ak) => eq(ak.id, keyId),
       columns: {
-        last_used_at: true
-      }
+        last_used_at: true,
+      },
     });
 
     return record?.last_used_at ?? null;
   }
 
   async deleteApiKey(userId: string, keyId: string) {
-    await this.db.update(apiKey).set({
-      revoked_at: new Date()
-    }).where(and(
-      eq(apiKey.id, keyId),
-      eq(apiKey.user_id, userId)
-    ));
+    await this.db
+      .update(apiKey)
+      .set({
+        revoked_at: new Date(),
+      })
+      .where(and(eq(apiKey.id, keyId), eq(apiKey.user_id, userId)));
 
-    await this.redis.del(`vmx:api_key:${VERSION}:${keyId}`)
-    localCache.delete(`${VERSION}:${keyId}`)
-
+    await this.redis.del(`vmx:api_key:${VERSION}:${keyId}`);
+    localCache.delete(`${VERSION}:${keyId}`);
   }
 
   async regenerateApiKey(userId: string, keyId: string) {
-    const {plaintextkey, keyId: newKeyId} = this.generateKey()
+    const { plaintextkey, keyId: newKeyId } = this.generateKey();
     const hash = await argon2.hash(plaintextkey, {
       type: argon2.argon2id,
       timeCost: 3,
@@ -110,14 +108,14 @@ export class ApiKeyService {
       parallelism: 1,
     });
     const prefix = plaintextkey.substring(0, 18) + '...';
-    await this.db.update(apiKey).set({
-      value: hash,
-      prefix,
-      id: newKeyId
-    }).where(and(
-      eq(apiKey.user_id, userId),
-      eq(apiKey.id, keyId),
-    ));
+    await this.db
+      .update(apiKey)
+      .set({
+        value: hash,
+        prefix,
+        id: newKeyId,
+      })
+      .where(and(eq(apiKey.user_id, userId), eq(apiKey.id, keyId)));
     return { key: plaintextkey };
   }
 }

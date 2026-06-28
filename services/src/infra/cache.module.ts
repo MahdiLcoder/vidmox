@@ -4,9 +4,9 @@ import { LRUCache } from 'lru-cache';
 export const LRU_CACHE = 'LRU_CACHE';
 
 export interface CacheInterface {
-    user_id: string;
-    public_id?: string;
-    last_used?: string;
+  user_id: string;
+  public_id?: string;
+  last_used?: string;
 }
 
 @Global()
