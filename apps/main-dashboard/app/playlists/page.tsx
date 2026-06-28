@@ -1,6 +1,8 @@
 "use client";
 
-import { ChevronRight, Plus, Edit3, Trash2 } from "lucide-react";
+import { useAuth, useUser } from "@clerk/nextjs";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { ChevronRight, Plus, Edit3, Trash2, Loader2 } from "lucide-react";
 import Link from "next/link";
 import React, { useState } from "react";
 
@@ -26,21 +28,135 @@ const Page = () => {
   const [playlist, setPlaylist] = useState<any>({});
   const [playlistName, setPlaylistName] = useState("");
   const [description, setDescription] = useState("");
+  const [selectedPlaylist, setSelectedPlaylist] = useState<any>(null);
+  const [editName, setEditName] = useState("");
+  const [editDescription, setEditDescription] = useState("");
 
-  const handleCreate = () => {
-    console.log("Playlist Created:", { playlistName, description });
-    setPlaylistName("");
-    setDescription("");
-    setShowModal(false);
+  const {getToken, isSignedIn} = useAuth()
+  
+  const { isLoaded } = useUser()
+  const queryClient = useQueryClient()
+
+  const {data: playlists, isLoading} = useQuery({
+    queryKey: ['playlists'],
+    queryFn: async () => {
+      const token = await getToken();
+      const res = await fetch(`${process.env.NEXT_PUBLIC_SERVICES_URL}/playlists`, {
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      });
+      return res.json();
+    },
+    enabled: isLoaded && isSignedIn,
+  })
+
+  const createMutation = useMutation({
+    mutationFn: async (data: {name: string, description?: string}) => {
+      const token = await getToken();
+      const res = await fetch(`${process.env.NEXT_PUBLIC_SERVICES_URL}/playlists`, {
+        method: 'POST',
+        headers: {
+          Authorization: `Bearer ${token}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(data),
+      });
+      if (!res.ok) {
+        throw new Error('Failed to create playlist');
+      }
+      return res.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['playlists'] });
+      setPlaylistName('');
+      setDescription('');
+      setShowModal(false);
+    },
+    onError: (error) => {
+      console.error('Error creating playlist:', error);
+    },
+  })
+
+  const updateMutation = useMutation({
+    mutationFn: async (data: {playlist_id: string, name: string, description?: string}) => {
+      const token = await getToken();
+      const res = await fetch(`${process.env.NEXT_PUBLIC_SERVICES_URL}/playlists/${data.playlist_id}`, {
+        method: 'PUT',
+        headers: {
+          Authorization: `Bearer ${token}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({name: data.name, description: data.description}),
+      });
+      if (!res.ok) {
+        throw new Error('Failed to update playlist');
+      }
+      return res.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['playlists'] });
+      setShowModal(false);
+      setSelectedPlaylist(null);
+    },
+    onError: (error) => {
+      console.error('Error creating playlist:', error);
+    },
+  })
+
+    const deleteMutation = useMutation({
+    mutationFn: async (playlist_id: string) => {
+      const token = await getToken();
+      const res = await fetch(`${process.env.NEXT_PUBLIC_SERVICES_URL}/playlists/${playlist_id}`, {
+        method: 'DELETE',
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      });
+      if (!res.ok) {
+        throw new Error('Failed to delete playlist');
+      }
+      return res.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['playlists'] });
+      setDeleteShowModal(false);
+      setSelectedPlaylist(null)
+    },
+    onError: (error) => {
+      console.error('Error deleting playlist:', error);
+    },
+  })
+
+  const handleCreate = async () => {
+    if(!playlistName.trim()) return;
+    createMutation.mutate({name: playlistName.trim(), description})
   };
 
   const handleSaveEdit = () => {
-    console.log("Playlist Edited:", { playlistName, description });
+    if(!editName.trim() || !selectedPlaylist) return;
+    updateMutation.mutate({playlist_id: selectedPlaylist.id, name: editName.trim(), description: editDescription})
   };
 
   const handleConfirmDelete = () => {
-    console.log("Playlist Deleted:", { playlistName, description });
+    if(!selectedPlaylist) return;
+    deleteMutation.mutate(selectedPlaylist.id)
   };
+
+  const openEditModal = (pl: any) => {
+    setSelectedPlaylist(pl);
+    setEditName(pl.name);
+    setEditDescription(pl.description??"");
+    setEditShowModal(true);
+  }
+  const openDeleteModal = (pl: any) => {
+    setSelectedPlaylist(pl);
+    setDeleteShowModal(true);
+  }
+
+  if(!isLoaded){
+    return null;
+  }
 
   return (
     <div className="text-black dark:text-white">
@@ -84,7 +200,14 @@ const Page = () => {
           </thead>
 
           <tbody>
-            {playlists.map((pl) => (
+         {isLoading ? (
+          <tr>
+            <td colSpan={4} className="text-center py-12 text-gray-500 dark:text-gray-400">
+              Loading...
+            </td>
+          </tr>
+         ): (
+             playlists?.map((pl:any) => (
               <tr
                 key={pl.id}
                 className="border-b dark:border-[#1f1f1f] hover:bg-gray-50 dark:hover:bg-[#1a1b1f]/50 transition"
@@ -100,27 +223,25 @@ const Page = () => {
                   <button
                     className="text-gray-400 hover:text-indigo-500 transition"
                     title="Edit"
-                    onClick={() => {
-                      setPlaylist(pl);
-                      setEditShowModal(true);
-                    }}
+                    onClick={() => openEditModal(pl)}
                   >
                     <Edit3 size={16} />
                   </button>
                   <button
                     className="text-red-500 hover:text-red-600 transition"
                     title="Delete"
-                    onClick={() => setDeleteShowModal(true)}
+                    onClick={() => openDeleteModal(pl)}
                   >
                     <Trash2 size={16} />
                   </button>
                 </td>
               </tr>
             ))}
+         )
           </tbody>
         </table>
 
-        {playlists.length === 0 && (
+        {!isLoading && playlists?.length === 0 && (
           <div className="text-center py-12 text-gray-500 dark:text-gray-400">
             No playlists found.
           </div>
@@ -168,21 +289,38 @@ const Page = () => {
                   rows={3}
                 />
               </div>
+
+              {createMutation.isError && (
+                <div className="text-red-500 text-sm">
+                  Error creating playlist: {createMutation.error?.message}
+                </div>
+              )}
             </div>
 
             {/* Footer */}
             <div className="flex justify-end items-center gap-3 px-6 pb-5">
               <button
-                onClick={() => setShowModal(false)}
+                onClick={() => {
+                  setShowModal(false);
+                  createMutation.reset();
+                }}
                 className="px-4 cursor-pointer py-1.5 text-sm rounded-md border dark:border-slate-600 dark:text-gray-300 text-black dark:hover:bg-slate-700 hover:bg-gray-200 transition"
               >
                 Cancel
               </button>
               <button
                 onClick={handleCreate}
+                disabled={createMutation.isPending}
                 className="px-4 cursor-pointer py-1.5 text-sm rounded-md bg-blue-600 hover:bg-blue-700 text-white font-semibold transition"
               >
-                Create Playlist
+                {createMutation.isPending ? (
+                  <div className="flex items-center gap-2">
+                    <Loader2 className="animate-spin" size={16} />
+                    <span className="text-sm">Creating playlist...</span>
+                  </div>
+                ) : (
+                  "Create Playlist"
+                )}
               </button>
             </div>
           </div>
